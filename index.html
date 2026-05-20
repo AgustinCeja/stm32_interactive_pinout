@@ -8,7 +8,10 @@
     <script src="pines.js"></script>
 
     <style>
-        /* Estética Dark Mode - Inspirado en Arch Linux */
+       
+       /*CONFIGURACION GLOBAL Y UTILIDADES*/
+
+       /* Estética Dark Mode - Inspirado en Arch Linux */
         body {
             background-color: #0d0d0d;
             color: #00ff41; /* Verde Matrix/Terminal */
@@ -21,7 +24,14 @@
             width: 100vw;
             overflow: hidden;
         }
-        /*Contenedor de Texto*/ /*Cartel superior central*/
+
+        .oculto {
+            display: none !important;
+        }
+
+        /*LAYOUT SUPERIOR Y MARCO DE CONTROLES*/
+
+        /*Contenedor de Texto - Cartel superior central*/
         #ui-header {
             display: flex;
             flex-direction: column;
@@ -30,34 +40,48 @@
             width: 100%;
             padding: 15px 0;
         }
-        /*Cartel de Informacion*/
-        #info-panel {
-           font-family: 'JetBrains Mono', 'Fira Code', monospace;
-           font-weight: bold;
-           color: #00ff41;
-           letter-spacing: 1px;
-           font-size: 14px;
-           cursor: default;
-           background-color: transparent;
-           border: none;
-           width: 100%;
-           height: 100%;
-           display: flex;
-           align-items: center;
-           justify-content: center;
-           box-sizing: border-box;
+
+        /* Contenedor horizontal para la lupa y la zona del cartel */
+        .barra-control-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 0;
+            width: 100%;
+            max-width: 360px;
+            background-color: #1a1a1a;
+            border: 1px solid #444;
+            border-radius: 6px;
+            overflow: hidden;
+            box-sizing: border-box;
+            height: 41px;
+            transition: all 0.2s ease-out;
         }
-         
+
+        .barra-control-wrapper:focus-within {
+            border-color: #3B82F6;
+            box-shadow: 0 0 15px rgba(59, 130, 246, 0.3);
+        }
+
+        .zona-interactiva-input {
+            flex-grow: 1;
+            display: flex;
+            align-items: center;
+            height: 41px;
+        }
+
+        /*COMPONENTE: BUSCADOR Y LUPA*/
+
         /*Contenedor del buscador*/
         #buscador-container {
             position: relative;
             width: 100%;
         }
+
         /*Caja de texto*/
         #input-busqueda {
             width: 100%;
             height: 100%;
-            padding: 0 15px;
+            padding: 0 10px 0 15px;
             border: none;
             background-color: transparent;
             color: #fff;
@@ -65,6 +89,60 @@
             outline: none;
             box-sizing: border-box;
         }
+
+        /*Cuadradito de la lupa*/
+        #btn-lupa {
+            background-color: #111111;
+            color: #888888;
+            border: none;
+            border-right: 1px solid #2d2d2d;
+            border-radius: 0;
+            padding: 0;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background-color 0.2s ease-out, color 0.2s ease-out;
+            height: 100%; 
+            width: 41px;  
+            box-sizing: border-box;
+
+            /*Nativo Fix*/
+            outline: none;
+            appearance: none;
+            -webkit-appearance: none;
+        }
+
+        #btn-lupa:hover {
+            background-color: #222222;
+            border-right-color: #3B82F6;
+            color: #3B82F6;
+            filter: drop-shadow(0 0 4px #3B82F6);
+        }
+
+        .barra-control-wrapper:focus-within #btn-lupa,
+        .barra-control-wrapper:focus-within #btn-lupa:hover {       
+            color: #3B82F6;
+            border-right-color: #3B82F6;
+            background-color: #1a1a1a;
+            filter: drop-shadow(0 0 4px #3B82F6);
+        }   
+
+        #btn-lupa #svg-lupa {
+            width: 19px;
+            height: 19px;
+            display: block;
+            transform: translate(-3px, -1px);
+        }
+
+        #svg-lupa circle,
+        #svg-lupa path {
+            pointer-events: none;
+            fill: none !important;
+            stroke: currentColor !important;
+        }
+
+        /*COMPONENTE: FILTROS DROPDOWN (MENU DESPLEGABLE)*/
 
         /*Ventana desplegable*/
         #dropdown-filtros {
@@ -93,7 +171,6 @@
             font-size: 14px;
             text-align: center;
             white-space: nowrap;
-            /*transition: background-color 0.2s, border-color 0.2s;*/
         }
 
         .btn-filtro:hover {
@@ -107,6 +184,8 @@
             box-shadow: 0 0 12px var(--color-btn);
         }
 
+        /*LAYOUT CENTRAL Y PANELES DE DATOS*/
+
         /*Tamaño de la placa*/
         #contenedor-placa {
             flex-grow: 1;
@@ -119,6 +198,26 @@
             width: 100%;
         }
 
+        /*Cartel de Informacion*/
+        #info-panel {
+           font-family: 'JetBrains Mono', 'Fira Code', monospace;
+           font-weight: bold;
+           color: #00ff41;
+           letter-spacing: 1px;
+           font-size: 14px;
+           cursor: default;
+           background-color: transparent;
+           border: none;
+           width: 100%;
+           height: 100%;
+           display: flex;
+           align-items: center;
+           justify-content: center;
+           box-sizing: border-box;
+        }
+
+        /*CAPA VECTORIAL (SVG, MICRO Y PINOUT)*/
+        
         svg {
             max-width: 100%;
             max-height: 100%;
@@ -135,7 +234,6 @@
             pointer-events: all;
             fill-opacity: 1;
             stroke-opacity: 1;
-            /*transition: fill-opacity 0.2s ease-out, stroke-opacity 0.2s ease-out;*/
         }
 
         /* Efecto de Hover: Brillo verde neón */
@@ -179,10 +277,7 @@
         margin: 0;
     }
 
-    .oculto {
-        display: none !important;
-    }
-
+    /*Nombre de los pines en la placa*/
     .pin-label {
         font-family: 'JetBrains Mono', 'Fira Code', monospace;
         font-size: 1.8px;
@@ -190,100 +285,20 @@
         pointer-events: none;
         transition: opacity 0.2s;
     }
-
-    /* Contenedor horizontal para la lupa y la zona del cartel */
-    .barra-control-wrapper {
-        display: flex;
-        align-items: center;
-        gap: 0;
-        width: 100%;
-        max-width: 360px;
-        background-color: #1a1a1a;
-        border: 1px solid #444;
-        border-radius: 6px;
-        overflow: hidden;
-        box-sizing: border-box;
-        height: 41px;
-        transition: all 0.2s ease-out;
-    }
-
-    .barra-control-wrapper:focus-within {
-        border-color: #3B82F6;
-        box-shadow: 0 0 15px rgba(59, 130, 246, 0.3);
-    }
-
-    /*Cuadradito de la lupa*/
-    #btn-lupa {
-        background-color: #111111;
-        color: #888888;
-        border: none;
-        border-right: 1px solid #2d2d2d;
-        border-radius: 0;
-        padding: 0;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        transition: background-color 0.2s ease-out, color 0.2s ease-out;
-        height: 100%; 
-        width: 41px;  
-        box-sizing: border-box;
-
-        /*Nativo Fix*/
-        outline: none;
-        appearance: none;
-        -webkit-appearance: none;
-    }
-
-    #btn-lupa:hover {
-        background-color: #222222;
-        border-right-color: #3B82F6;
-        color: #3B82F6;
-        filter: drop-shadow(0 0 4px #3B82F6);
-    }
-
-    .barra-control-wrapper:focus-within #btn-lupa,
-    .barra-control-wrapper:focus-within #btn-lupa:hover {       
-        color: #3B82F6;
-        border-right-color: #3B82F6;
-        background-color: #1a1a1a;
-        filter: drop-shadow(0 0 4px #3B82F6);
-    }   
-
-    .zona-interactiva-input {
-        flex-grow: 1;
-        display: flex;
-        align-items: center;
-        height: 41px;
-    }
-
-    #btn-lupa #svg-lupa {
-        width: 19px;
-        height: 19px;
-        display: block;
-        transform: translate(-3px, -1px);
-    }
-
-    #svg-lupa circle,
-    #svg-lupa path {
-        pointer-events: none;
-        fill: none !important;
-        stroke: currentColor !important;
-    }
-
+    
     </style>
 </head>
 <body>
 
-    <div id="ui-header">
+    <header id="ui-header">
         <div class="barra-control-wrapper">
     
             <button id="btn-lupa">
                 <svg id="svg-lupa" width="24" height="24" version="1.1" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <g id="Lupa_Contenedor" fill="none" stroke="currentColor" stroke-width="1.5">
-                <circle id="Lupa_Lente" cx="13" cy="12" r="5.5"/>
-                <path id="Lupa_Mango" d="m17 17 6 6z" stroke-linejoin="round"/>
-                </g>
+                    <g id="Lupa_Contenedor" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <circle id="Lupa_Lente" cx="13" cy="12" r="5.5"/>
+                        <path id="Lupa_Mango" d="m17 17 6 6z" stroke-linejoin="round"/>
+                    </g>
                 </svg>
             </button>
     
@@ -303,9 +318,9 @@
             <button class="btn-filtro" data-categoria="timers" style="--color-btn: #F59E0B;">Timers & PWM</button>
             <button class="btn-filtro" data-categoria="debug" style="--color-btn: #8B5CF6;">Debug & Flash</button> 
         </div>
-    </div>
+    </header>
 
-    <div id="contenedor-placa">
+    <main id="contenedor-placa">
         <svg id="svg1" width="41mm" height="71.34mm" version="1.1" viewBox="0 0 41 71.34" xml:space="preserve" xmlns="http://www.w3.org/2000/svg">
             <g id="Placa_Base" transform="translate(0,2)">
                 <path id="Placa" d="m1.9999 0c-1.108 0-1.9999 0.89188-1.9999 1.9999v65.34c0 1.108 0.89188 1.9999 1.9999 1.9999h37c1.108 0 1.9999-0.89188 1.9999-1.9999v-65.34c0-1.108-0.89188-1.9999-1.9999-1.9999zm1.1002 1.5002a1.6 1.6 0 0 1 1.5999 1.5999 1.6 1.6 0 0 1-1.5999 1.5999 1.6 1.6 0 0 1-1.5999-1.5999 1.6 1.6 0 0 1 1.5999-1.5999zm34.8 0a1.6 1.6 0 0 1 1.5999 1.5999 1.6 1.6 0 0 1-1.5999 1.5999 1.6 1.6 0 0 1-1.5999-1.5999 1.6 1.6 0 0 1 1.5999-1.5999zm-34.8 63.14a1.6 1.6 0 0 1 1.5999 1.5999 1.6 1.6 0 0 1-1.5999 1.5999 1.6 1.6 0 0 1-1.5999-1.5999 1.6 1.6 0 0 1 1.5999-1.5999zm34.8 0a1.6 1.6 0 0 1 1.5999 1.5999 1.6 1.6 0 0 1-1.5999 1.5999 1.6 1.6 0 0 1-1.5999-1.5999 1.6 1.6 0 0 1 1.5999-1.5999z" fill="#1d1d1d" stroke="#000" stroke-width=".5"/>
@@ -359,12 +374,14 @@
 
             <g id="etiquetas-dinamicas" transform="translate(0,2)"></g>
         </svg>
-    </div>
-<div id="tooltip" class="tooltip"></div>
+    </main>
+
+    <div id="tooltip" class="tooltip"></div>
 
     <script>
        
-        //Selectores e Inicializacion
+        //SELECTORES E INICIALIZACION
+       
         const infoPines = infoPinesData; 
         const infoPanel = document.getElementById('info-panel');
         const svg = document.getElementById('svg1');
@@ -374,6 +391,10 @@
         const contenedorPlaca = document.getElementById('contenedor-placa');
         const buscadorBox = document.getElementById('buscador-container');
         const btnLupa = document.getElementById('btn-lupa');
+        const botonesFIltro = document.querySelectorAll('.btn-filtro');
+        const containerEtiquetas = document.getElementById('etiquetas-dinamicas');
+
+        //CONFIGURACIÓN Y ESTADO GLOBAL DE LA WEB
 
         //Diccionario global de colores
         const coloresCategorias = {
@@ -384,8 +405,12 @@
             debug: '#8B5CF6',
         };
         
-        //Diccionario de limpieza para pocesar los IDs del SVG
+        //Diccionario de limpieza para procesar los IDs del SVG
         const palabrasProhibidas = ['LE', 'LI', 'RI', 'RE', 'TOP', 'MID', 'Cap', 'Body', 'Visual', '1', '2'];
+
+        let categoriaFijada = null;
+
+        //INICIALIZACIÓN Y OPTIMIZACIÓN
 
         //Optimizacion
         const componentesPlacaGlobal = svg.querySelectorAll('circle, rect, path');
@@ -405,6 +430,8 @@
                 componente._pinNum = hermanos.indexOf(componente) + 1;
             }
         });
+
+        //MOTOR INTERNO
 
         // Centralización de la matriz de geometría de etiquetas
         function obtenerGeometriaEtiqueta(prefijo, pinNum) {
@@ -430,154 +457,9 @@
            
            return { textAnchor, offsetX, offsetY };
        }
-       
-        //Seguimiento del Mouse
-        document.addEventListener('mousemove', (e) => {
-            if (tooltip.style.display === 'block') {
-                const mouseX = e.clientX;
-                const mouseY = e.clientY;
-                const rect = tooltip.getBoundingClientRect();
-                const gap = 12;
-                let finalX, finalY; 
-            
-                //Lógica del Movimiento en X
-               if (tooltip.classList.contains('lado-izquierdo')) {
-                finalX = mouseX - rect.width - gap;
-               } else {
-                finalX = mouseX + gap;
-               }
-
-               if (finalX < 10) {
-                finalX = mouseX + gap;
-               } else if (finalX + rect.width > window.innerWidth - 10) {
-                finalX = mouseX - rect.width - gap;
-               }
-
-               //Lógica del Movimiento en Y
-               finalY = mouseY - rect.height - gap;
-
-               const contenedorTecho = dropdownFiltros.classList.contains('oculto') ? infoPanel : dropdownFiltros;
-
-               const techoRect = contenedorTecho.getBoundingClientRect();
-               const limiteSuperior = techoRect.bottom + 8;
-
-               if (finalY < limiteSuperior) {
-                finalY = mouseY + gap;
-               } else if (finalY + rect.height > window.innerHeight - 10) {
-                finalY = mouseY - rect.height - gap;
-               }
-
-               tooltip.style.left = finalX + 'px';
-               tooltip.style.top = finalY + 'px';
-            }
-            
-        });
-
-        // Inspector de Pines al pasar el mouse
-        svg.addEventListener('mouseover', (e) => {
-            const target = e.target;
-            
-            //Filtramos para que solo actúe en componenetes con ID real
-            if (target.id && target._nombrePin){
-                
-                const textoBusqueda = inputBusqueda.value.toUpperCase().trim();
-
-                if (textoBusqueda !== '') {
-                    if (!target._esPinBuscable || !target._nombrePin.toUpperCase().includes(textoBusqueda)) {
-                        return;
-                    }
-                } else if (categoriaFijada) {
-                    if (!target._datosPin || target._datosPin.categoria !== categoriaFijada) {
-                        return;
-                    }
-                }
-                
-                const prefijo = target._prefijo; 
-                const nombreParaMostrar = target._nombrePin;
-                const pinData = target._datosPin;
-                const descripcion = pinData ? pinData.descripcion : "Pin sin descripción cargada";
-
-                const categoriaPin = pinData ? pinData.categoria: null;
-                const colorActual = ((categoriaFijada || textoBusqueda !== '') && categoriaPin && coloresCategorias[categoriaPin]) 
-                                    ? coloresCategorias[categoriaPin] 
-                                    : '#00ff41';
-                
-                //Lógica de Rellenado Contextual al hacer Hover
-                if (target.tagName.toLowerCase() === 'circle' && (categoriaFijada || textoBusqueda !== '')) {
-                    target.style.fill = colorActual;
-                    target.style.fillOpacity = '1';
-                    target.style.stroke = colorActual;
-                }
-                //Logica de Direccion
-                if (prefijo === 'LE' || prefijo === 'RI') {
-                tooltip.classList.add('lado-izquierdo');
-                tooltip.classList.remove('lado-derecho');
-                } else {
-                tooltip.classList.add('lado-derecho');
-                tooltip.classList.remove('lado-izquierdo');
-                }
-
-            //tooltip
-            tooltip.innerHTML = `<strong>${nombreParaMostrar}</strong><br><small>${descripcion}</small>`;
-            
-            tooltip.style.color = colorActual;
-            tooltip.style.borderColor = colorActual;
-            tooltip.style.boxShadow = `0 0 15px ${colorActual}40`;
-            tooltip.style.display = 'block';
-
-            infoPanel.innerHTML = `Componente: <span style="color: #fff; text-shadow: 0 0 5px ${colorActual};">${nombreParaMostrar}</span>`;
-            }
-        });
-
-        // Limpiamos cuando sale del componente
-        svg.addEventListener('mouseout', (e) => {
-        const target = e.target;
-        const textoBusqueda = inputBusqueda.value.trim();
-    
-        if (target.id && target._nombrePin && target.tagName.toLowerCase() === 'circle' && (categoriaFijada || textoBusqueda !== '')) {
-            target.style.fill = '';        
-            
-            if (categoriaFijada && textoBusqueda === '') {
-                target.style.fillOpacity = '0';
-                target.style.stroke = coloresCategorias[categoriaFijada];
-            } else {
-                target.style.fillOpacity = '1';
-                const categoriaPinTarget = target._datosPin ? target._datosPin.categoria : null;
-                if (categoriaPinTarget && coloresCategorias[categoriaPinTarget]) {
-                    target.style.stroke = coloresCategorias[categoriaPinTarget];
-                }
-            }
-        }
-
-    tooltip.style.display = 'none'; 
-    infoPanel.textContent = "SITÚA EL MOUSE SOBRE UN PIN";
-});
-
-       //Interaccion con el buscador
-       
-       btnLupa.addEventListener('click', (e) => {
-          e.stopPropagation();
-          infoPanel.classList.add('oculto');
-          buscadorBox.classList.remove('oculto');
-          dropdownFiltros.classList.remove('oculto');
-          inputBusqueda.focus();
-       });
-
-       document.addEventListener('click', (e) => {
-          if (!buscadorBox.contains(e.target) && !infoPanel.contains(e.target) && !btnLupa.contains(e.target)) {
-             dropdownFiltros.classList.add('oculto');
-             buscadorBox.classList.add('oculto');
-             infoPanel.classList.remove('oculto');
-             resetearFiltrosPlaca();
-          }
-       });
 
        //Motor de Filtrado por Categorias
-       const botonesFIltro = document.querySelectorAll('.btn-filtro');
-       const containerEtiquetas = document.getElementById('etiquetas-dinamicas');
-
-       let categoriaFijada = null;
-
+    
        function aplicarFiltro(categoriaObjetivo, colorCategoria, dibujarTexto = false) {
            containerEtiquetas.innerHTML = '';
            const fragmentoCategoria = document.createDocumentFragment();
@@ -637,7 +519,170 @@
 
        } // Cierre correcto de aplicarFiltro
 
-       // Asignamos hover y click a cada botón
+       // Funcion de limpieza visual
+       function limpiarAspectoPlaca() {
+           containerEtiquetas.innerHTML = ''; 
+           componentesPlacaGlobal.forEach(componente => {
+               componente.style.fill = '';
+               componente.style.fillOpacity = '';
+               componente.style.strokeOpacity = '';
+               componente.style.stroke = '';
+               componente.style.strokeWidth = '';
+               componente.style.filter = '';
+               componente.style.pointerEvents = '';
+           });
+       }
+
+       // Limpieza profunda de filtros y buscador
+       function resetearFiltrosPlaca() {
+           categoriaFijada = null;
+           limpiarAspectoPlaca();
+           inputBusqueda.value = '';
+           botonesFIltro.forEach(b => b.classList.remove('activo'));
+       }
+
+       //INTERACCIONES DEL MOUSE (Fisica del Tooltip y Hovers)
+       
+       //Seguimiento del Mouse
+       document.addEventListener('mousemove', (e) => {
+           if (tooltip.style.display === 'block') {
+               const mouseX = e.clientX;
+               const mouseY = e.clientY;
+               const rect = tooltip.getBoundingClientRect();
+               const gap = 12;
+               let finalX, finalY; 
+            
+               //Lógica del Movimiento en X
+               if (tooltip.classList.contains('lado-izquierdo')) {
+                   finalX = mouseX - rect.width - gap;
+               } else {
+                   finalX = mouseX + gap;
+               }
+
+               if (finalX < 10) {
+                   finalX = mouseX + gap;
+               } else if (finalX + rect.width > window.innerWidth - 10) {
+                   finalX = mouseX - rect.width - gap;
+               }
+
+               //Lógica del Movimiento en Y
+               finalY = mouseY - rect.height - gap;
+
+               const contenedorTecho = dropdownFiltros.classList.contains('oculto') ? infoPanel : dropdownFiltros;
+               const techoRect = contenedorTecho.getBoundingClientRect();
+               const limiteSuperior = techoRect.bottom + 8;
+
+               if (finalY < limiteSuperior) {
+                   finalY = mouseY + gap;
+               } else if (finalY + rect.height > window.innerHeight - 10) {
+                   finalY = mouseY - rect.height - gap;
+               }
+
+               tooltip.style.left = finalX + 'px';
+               tooltip.style.top = finalY + 'px';
+            }
+            
+        });
+
+        // Inspector de Pines al pasar el mouse
+        svg.addEventListener('mouseover', (e) => {
+            const target = e.target;
+            
+            //Filtramos para que solo actúe en componenetes con ID real
+            if (target.id && target._nombrePin){
+                const textoBusqueda = inputBusqueda.value.toUpperCase().trim();
+
+                if (textoBusqueda !== '') {
+                    if (!target._esPinBuscable || !target._nombrePin.toUpperCase().includes(textoBusqueda)) {
+                        return;
+                    }
+                } else if (categoriaFijada) {
+                    if (!target._datosPin || target._datosPin.categoria !== categoriaFijada) {
+                        return;
+                    }
+                }
+                
+                const prefijo = target._prefijo; 
+                const nombreParaMostrar = target._nombrePin;
+                const pinData = target._datosPin;
+                const descripcion = pinData ? pinData.descripcion : "Pin sin descripción cargada";
+
+                const categoriaPin = pinData ? pinData.categoria: null;
+                const colorActual = ((categoriaFijada || textoBusqueda !== '') && categoriaPin && coloresCategorias[categoriaPin]) 
+                                    ? coloresCategorias[categoriaPin] 
+                                    : '#00ff41';
+                
+                //Lógica de Rellenado Contextual al hacer Hover
+                if (target.tagName.toLowerCase() === 'circle' && (categoriaFijada || textoBusqueda !== '')) {
+                    target.style.fill = colorActual;
+                    target.style.fillOpacity = '1';
+                    target.style.stroke = colorActual;
+                }
+                //Logica de Direccion
+                if (prefijo === 'LE' || prefijo === 'RI') {
+                tooltip.classList.add('lado-izquierdo');
+                tooltip.classList.remove('lado-derecho');
+                } else {
+                tooltip.classList.add('lado-derecho');
+                tooltip.classList.remove('lado-izquierdo');
+                }
+
+                //tooltip
+                tooltip.innerHTML = `<strong>${nombreParaMostrar}</strong><br><small>${descripcion}</small>`;         
+                tooltip.style.color = colorActual;
+                tooltip.style.borderColor = colorActual;
+                tooltip.style.boxShadow = `0 0 15px ${colorActual}40`;
+                tooltip.style.display = 'block';
+
+                infoPanel.innerHTML = `Componente: <span style="color: #fff; text-shadow: 0 0 5px ${colorActual};">${nombreParaMostrar}</span>`;
+            }
+        });
+
+        // Limpiamos cuando sale del componente
+        svg.addEventListener('mouseout', (e) => {
+            const target = e.target;
+            const textoBusqueda = inputBusqueda.value.trim();
+    
+            if (target.id && target._nombrePin && target.tagName.toLowerCase() === 'circle' && (categoriaFijada || textoBusqueda !== '')) {
+                target.style.fill = '';        
+            
+                if (categoriaFijada && textoBusqueda === '') {
+                    target.style.fillOpacity = '0';
+                    target.style.stroke = coloresCategorias[categoriaFijada];
+                } else {
+                    target.style.fillOpacity = '1';
+                    const categoriaPinTarget = target._datosPin ? target._datosPin.categoria : null;
+                    if (categoriaPinTarget && coloresCategorias[categoriaPinTarget]) {
+                        target.style.stroke = coloresCategorias[categoriaPinTarget];
+                }
+            }
+        }
+        tooltip.style.display = 'none'; 
+        infoPanel.textContent = "SITÚA EL MOUSE SOBRE UN PIN";
+    });
+
+       // CONTROLADORES DE INTERFAZ (Buscador y Botonera)
+       
+       //Interaccion con el buscador (Abrir buscador)  
+       btnLupa.addEventListener('click', (e) => {
+          e.stopPropagation();
+          infoPanel.classList.add('oculto');
+          buscadorBox.classList.remove('oculto');
+          dropdownFiltros.classList.remove('oculto');
+          inputBusqueda.focus();
+       });
+
+       //Click afuera de la barra (Cerrar buscador)
+       document.addEventListener('click', (e) => {
+          if (!buscadorBox.contains(e.target) && !infoPanel.contains(e.target) && !btnLupa.contains(e.target)) {
+             dropdownFiltros.classList.add('oculto');
+             buscadorBox.classList.add('oculto');
+             infoPanel.classList.remove('oculto');
+             resetearFiltrosPlaca();
+          }
+       });
+
+       // Eventos de los botones de filtro (Hover y Click)
        botonesFIltro.forEach(boton => {
            const cat = boton.getAttribute('data-categoria');
            const col = boton.style.getPropertyValue('--color-btn');
@@ -679,34 +724,11 @@
            });
        }); // Cierre correcto del forEach de botones
 
-       // Funcion de limpieza visual
-       function limpiarAspectoPlaca() {
-           containerEtiquetas.innerHTML = ''; 
-           componentesPlacaGlobal.forEach(componente => {
-               componente.style.fill = '';
-               componente.style.fillOpacity = '';
-               componente.style.strokeOpacity = '';
-               componente.style.stroke = '';
-               componente.style.strokeWidth = '';
-               componente.style.filter = '';
-               componente.style.pointerEvents = '';
-           });
-       }
-
-       // Limpieza profunda de filtros y buscador
-       function resetearFiltrosPlaca() {
-           categoriaFijada = null;
-           limpiarAspectoPlaca();
-           inputBusqueda.value = '';
-           botonesFIltro.forEach(b => b.classList.remove('activo'));
-       }
-
        //Motor de busqueda en tiempo real 
        inputBusqueda.addEventListener('input', () => {
-        const texto = inputBusqueda.value.toUpperCase().trim();
-        containerEtiquetas.innerHTML = '';
-
-        const fragmentoLabel = document.createDocumentFragment();
+           const texto = inputBusqueda.value.toUpperCase().trim();
+           containerEtiquetas.innerHTML = '';
+           const fragmentoLabel = document.createDocumentFragment();
 
         //Si el usuario borro el buscador, restauramos el estado
         if (texto === '') {
@@ -723,9 +745,6 @@
 
         botonesFIltro.forEach(b => b.classList.remove('activo'));
 
-
-        //Si hay texto escrito, filtramos de forma incremental
-        //CAMBIO: Usamos la lista global pre-calculada
         componentesPlacaGlobal.forEach(componente => {
             if (!componente.id || ['svg1', 'Placa', 'etiquetas-dinamicas'].includes(componente.id)) return;
 
