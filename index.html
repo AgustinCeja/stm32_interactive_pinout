@@ -54,7 +54,7 @@
             overflow: hidden;
             box-sizing: border-box;
             height: 41px;
-            transition: all 0.2s ease-out;
+            transition: all 0.2s ease-out, transform 0.5s cubic-bezier(0.25, 1, 0.5, 1);
         }
 
         .barra-control-wrapper:focus-within {
@@ -142,6 +142,81 @@
             stroke: currentColor !important;
         }
 
+        /*COMPONENTE: PANEL LATERAL EXTENDIDO*/
+
+        #panel-lateral {
+            position: fixed;
+            top: 0;
+            right: 0;
+            width: 40vw;
+            height: 100vh;
+            background-color: #111111;
+            border-left: #2d2d2d;
+            box-shadow: -8px 0 24px rgba(0,0,0,0.6);
+            z-index: 999;
+            display: flex;
+            flex-direction: column;
+            box-sizing: border-box;
+            transform: translateX(100%);
+            transition: transform 0.5s cubic-bezier(0.25, 1, 0.5, 1);
+        }
+
+        body.panel-abierto #panel-lateral {
+            transform: translateX(0);
+        }
+
+        /*Estructura interna del panel (Encabezado)*/
+        .panel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 20px 15px;
+            border-bottom: 1px solid #2d2d2d;
+            background-color: #0d0d0d;
+        }
+
+        #panel-titulo {
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: bold;
+            font-size: 13px;
+            letter-spacing: 1px;
+            color: #00ff41;
+        }
+
+        #btn-cerrar-panel {
+            background-color: transparent;
+            border: none;
+            color: #666;
+            font-size: 24px;
+            cursor: pointer;
+            line-height: 1;
+            padding: 0 5px;
+            transition: color 0.2s ease-out;
+        }
+
+        #btn-cerrar-panel:hover {
+            color: #EF4444
+        }
+
+        /*Cuerpo del contenido*/
+        #panel-contenido {
+            padding: 20px;
+            flex-grow: 1;
+            overflow-y: auto;
+            color: #fff;
+            font-size: 14px;
+        }
+
+        .panel-placeholder {
+            color: #666666;
+            font-style: italic;
+            font-size: 13px;
+            text-align: center;
+            margin-top: 50px;
+            line-height: 1.5;
+        }
+
+
         /*COMPONENTE: FILTROS DROPDOWN (MENU DESPLEGABLE)*/
 
         /*Ventana desplegable*/
@@ -159,6 +234,7 @@
             grid-template-columns: repeat(5, 1fr);
             gap: 8px;
             box-sizing: border-box;
+            transition: width 0.5s cubic-bezier(0.25, 1, 0.5, 1), transform 0.5s cubic-bezier(0.25, 1, 0.5, 1);
         }
 
         .btn-filtro {
@@ -196,6 +272,17 @@
             box-sizing: border-box;
             min-height: 0;
             width: 100%;
+            transition: transform 0.5s cubic-bezier(0.25, 1, 0.5, 1);
+        }
+
+        body.panel-abierto #contenedor-placa,
+        body.panel-abierto .barra-control-wrapper,
+        body.panel-abierto #dropdown-filtros {
+            transform: translateX(-20vw);
+        }
+
+        body.panel-abierto #dropdown-filtros {
+            width: 56vw;
         }
 
         /*Cartel de Informacion*/
@@ -286,6 +373,15 @@
         transition: opacity 0.2s;
     }
     
+    /*Pin seleccionado por click*/
+    circle.seleccionado, rect.seleccionado, path.seleccionado {
+        fill: var(--color-seleccionado, #00ff41) !important;
+        fill-opacity: 1 !important;
+        stroke: var(--color-seleccionado, #00ff41) !important;
+        stroke-width: 0.5px !important;
+        filter: drop-shadow(0 0 10px var(--color-seleccionado, #00ff41)) !important;
+    }
+
     </style>
 </head>
 <body>
@@ -376,6 +472,16 @@
         </svg>
     </main>
 
+    <aside id="panel-lateral">
+        <div class="panel-header">
+            <span id="panel-titulo">INFORMACIÓN DEL PIN</span>
+            <button id="btn-cerrar-panel" title="Cerrar ventana">x</button>
+        </div>
+        <div id="panel-contenido">
+            <p class="panel-placeholder">Hacé click en un pin para ver sus detalles técnicos.</p>
+        </div>
+    </aside>
+
     <div id="tooltip" class="tooltip"></div>
 
     <script>
@@ -391,6 +497,7 @@
         const contenedorPlaca = document.getElementById('contenedor-placa');
         const buscadorBox = document.getElementById('buscador-container');
         const btnLupa = document.getElementById('btn-lupa');
+        const btnCerrarPanel = document.getElementById("btn-cerrar-panel");
         const botonesFIltro = document.querySelectorAll('.btn-filtro');
         const containerEtiquetas = document.getElementById('etiquetas-dinamicas');
 
@@ -409,10 +516,11 @@
         const palabrasProhibidas = ['LE', 'LI', 'RI', 'RE', 'TOP', 'MID', 'Cap', 'Body', 'Visual', '1', '2'];
 
         let categoriaFijada = null;
+        let pinSeleccionado = null;
+        let aislarPinActivo = false;
 
         //INICIALIZACIÓN Y OPTIMIZACIÓN
 
-        //Optimizacion
         const componentesPlacaGlobal = svg.querySelectorAll('circle, rect, path');
 
         componentesPlacaGlobal.forEach(componente => {
@@ -458,6 +566,27 @@
            return { textAnchor, offsetX, offsetY };
        }
 
+       //Fábrica centralizada de etiquetas SVG para eliminar duplicación (DRY)
+       function crearNodoEtiqueta(componente, color) {
+           const prefijo = componente._prefijo;
+           const cx = parseFloat(componente.getAttribute('cx'));
+           const cy = parseFloat(componente.getAttribute('cy'));
+           const { textAnchor, offsetX, offsetY } = obtenerGeometriaEtiqueta(prefijo, componente._pinNum);
+
+           if (textAnchor === '') return null;
+
+           const textNode = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+           textNode.setAttribute('x', cx + offsetX);
+           textNode.setAttribute('y', cy + offsetY);
+           textNode.setAttribute('dominant-baseline', 'middle');
+           textNode.setAttribute('text-anchor', textAnchor);
+           textNode.setAttribute('class', 'pin-label');
+           textNode.setAttribute('fill', color);
+           textNode.textContent = componente._nombrePin;
+
+           return textNode;
+       }
+
        //Motor de Filtrado por Categorias
     
        function aplicarFiltro(categoriaObjetivo, colorCategoria, dibujarTexto = false) {
@@ -467,12 +596,32 @@
            componentesPlacaGlobal.forEach(componente => {
                if (!componente.id || ['svg1', 'Placa', 'etiquetas-dinamicas'].includes(componente.id)) return;
 
-               const prefijo = componente._prefijo;
-               const nombrePin = componente._nombrePin;
+               if (pinSeleccionado && componente === pinSeleccionado) {
+                   const catPin = componente._datosPin ? componente._datosPin.categoria : null;
+                   const colPin = (catPin && coloresCategorias[catPin]) ? coloresCategorias[catPin] : '#00ff41';
+
+                   componente.style.pointerEvents = '';
+                   componente.style.fillOpacity = '1';
+                   componente.style.strokeOpacity = '1';
+                   componente.style.stroke = colPin;
+                   componente.style.strokeWidth = '0.4px';
+                   componente.style.filter = `drop-shadow(0 0 6px ${colPin})`;
+                   return;
+               }
+
                const datosPin = componente._datosPin;
 
                if (datosPin && datosPin.categoria === categoriaObjetivo) {
-                   // Resaltar Pin
+                   
+                   if (categoriaFijada == categoriaObjetivo && pinSeleccionado && aislarPinActivo && componente !== pinSeleccionado) {
+                       componente.style.fillOpacity = '0.15';
+                       componente.style.strokeOpacity = '0.15';
+                       componente.style.stroke = '';
+                       componente.style.filter = 'none';
+                       componente.style.pointerEvents = 'none';
+                       return;
+                   }
+
                    componente.style.pointerEvents ='';
                    componente.style.fillOpacity = '0';
                    componente.style.strokeOpacity = '1';
@@ -485,28 +634,12 @@
                        componente.style.filter = 'none';
                    }
 
-                   // Inyectar etiqueta dinámica si es un pad lateral
                    if (dibujarTexto && componente.tagName.toLowerCase() === 'circle') {
-                       const cx = parseFloat(componente.getAttribute('cx'));
-                       const cy = parseFloat(componente.getAttribute('cy'));
-
-                       const { textAnchor, offsetX, offsetY } = obtenerGeometriaEtiqueta(prefijo, componente._pinNum);
-
-                       if (textAnchor !== '') {
-                           const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-                           text.setAttribute('x', cx + offsetX);
-                           text.setAttribute('y', cy + offsetY);
-                           text.setAttribute('dominant-baseline', 'middle');
-                           text.setAttribute('text-anchor', textAnchor);
-                           text.setAttribute('class', 'pin-label');
-                           text.setAttribute('fill', colorCategoria);
-                           text.textContent = nombrePin;
-
-                           fragmentoCategoria.appendChild(text);
-                       }
+                       const text = crearNodoEtiqueta(componente, colorCategoria);
+                       if (text) fragmentoCategoria.appendChild(text);
                    } 
                } else {
-                   // Opacar el resto
+
                    componente.style.fillOpacity = '0.15';
                    componente.style.strokeOpacity = '0.15';
                    componente.style.stroke = '';
@@ -517,7 +650,7 @@
 
            containerEtiquetas.appendChild(fragmentoCategoria);
 
-       } // Cierre correcto de aplicarFiltro
+       } 
 
        // Funcion de limpieza visual
        function limpiarAspectoPlaca() {
@@ -536,9 +669,38 @@
        // Limpieza profunda de filtros y buscador
        function resetearFiltrosPlaca() {
            categoriaFijada = null;
+           aislarPinActivo = false; 
            limpiarAspectoPlaca();
            inputBusqueda.value = '';
            botonesFIltro.forEach(b => b.classList.remove('activo'));
+           actualizarColorPinSeleccionado();
+       }
+
+       //Sincronizador dinámico del color del pin seleccionado
+       function actualizarColorPinSeleccionado() {
+           if (!pinSeleccionado) return;
+
+           const textoBusqueda = inputBusqueda.value.toUpperCase().trim();
+           const pinData = pinSeleccionado._datosPin;
+           const cat = pinData ? pinData.categoria : null;
+           const menuControlesAbierto = !buscadorBox.classList.contains('oculto');
+
+           const colorActual = ((menuControlesAbierto || categoriaFijada || textoBusqueda !== '') && cat && coloresCategorias[cat])
+                               ? coloresCategorias[cat]
+                               : '#00ff41';
+
+           pinSeleccionado.style.setProperty('--color-seleccionado', colorActual);
+
+           if (pinSeleccionado.tagName.toLowerCase() === 'circle') {
+               let textNode = Array.from(containerEtiquetas.querySelectorAll('.pin-label')).find(label => label.textContent == pinSeleccionado._nombrePin);
+
+               if (!textNode) {
+                   textNode = crearNodoEtiqueta(pinSeleccionado, colorActual);
+                   if (textNode) containerEtiquetas.appendChild(textNode);
+               } else {
+                   textNode.setAttribute('fill', colorActual);
+               }
+           }
        }
 
        //INTERACCIONES DEL MOUSE (Fisica del Tooltip y Hovers)
@@ -552,7 +714,6 @@
                const gap = 12;
                let finalX, finalY; 
             
-               //Lógica del Movimiento en X
                if (tooltip.classList.contains('lado-izquierdo')) {
                    finalX = mouseX - rect.width - gap;
                } else {
@@ -565,7 +726,6 @@
                    finalX = mouseX - rect.width - gap;
                }
 
-               //Lógica del Movimiento en Y
                finalY = mouseY - rect.height - gap;
 
                const contenedorTecho = dropdownFiltros.classList.contains('oculto') ? infoPanel : dropdownFiltros;
@@ -586,9 +746,13 @@
 
         // Inspector de Pines al pasar el mouse
         svg.addEventListener('mouseover', (e) => {
-            const target = e.target;
+            const target = e.target;     
             
-            //Filtramos para que solo actúe en componenetes con ID real
+            botonesFIltro.forEach(b => {
+                b.style.boxShadow = '';
+                b.style.transform = '';
+            });
+            
             if (target.id && target._nombrePin){
                 const textoBusqueda = inputBusqueda.value.toUpperCase().trim();
 
@@ -606,17 +770,18 @@
                 const nombreParaMostrar = target._nombrePin;
                 const pinData = target._datosPin;
                 const descripcion = pinData ? pinData.descripcion : "Pin sin descripción cargada";
-
                 const categoriaPin = pinData ? pinData.categoria: null;
-                const colorActual = ((categoriaFijada || textoBusqueda !== '') && categoriaPin && coloresCategorias[categoriaPin]) 
+                const menuControlesAbierto = !buscadorBox.classList.contains('oculto');
+                const colorActual = ((menuControlesAbierto || categoriaFijada || textoBusqueda !== '') && categoriaPin && coloresCategorias[categoriaPin]) 
                                     ? coloresCategorias[categoriaPin] 
                                     : '#00ff41';
                 
                 //Lógica de Rellenado Contextual al hacer Hover
-                if (target.tagName.toLowerCase() === 'circle' && (categoriaFijada || textoBusqueda !== '')) {
+                if (target.tagName.toLowerCase() === 'circle' && (menuControlesAbierto || categoriaFijada || textoBusqueda !== '')) {
                     target.style.fill = colorActual;
                     target.style.fillOpacity = '1';
                     target.style.stroke = colorActual;
+                    target.style.filter = `drop-shadow(0 0 8px ${colorActual})`;
                 }
                 //Logica de Direccion
                 if (prefijo === 'LE' || prefijo === 'RI') {
@@ -626,8 +791,16 @@
                 tooltip.classList.add('lado-derecho');
                 tooltip.classList.remove('lado-izquierdo');
                 }
-
-                //tooltip
+                //Efecto espejo (Hover)
+                if (categoriaPin && categoriaPin !== categoriaFijada) {
+                    const botonAsociado = document.querySelector(`.btn-filtro[data-categoria="${categoriaPin}"]`);
+                    if (botonAsociado) {
+                        botonAsociado.style.boxShadow = `0 0 15px ${coloresCategorias[categoriaPin]}`;
+                        botonAsociado.style.transform = 'scale(1.05)';
+                        botonAsociado.style.transition = 'all 0.2s ease';
+                    }
+                }
+                
                 tooltip.innerHTML = `<strong>${nombreParaMostrar}</strong><br><small>${descripcion}</small>`;         
                 tooltip.style.color = colorActual;
                 tooltip.style.borderColor = colorActual;
@@ -637,29 +810,38 @@
                 infoPanel.innerHTML = `Componente: <span style="color: #fff; text-shadow: 0 0 5px ${colorActual};">${nombreParaMostrar}</span>`;
             }
         });
-
-        // Limpiamos cuando sale del componente
+        
         svg.addEventListener('mouseout', (e) => {
             const target = e.target;
             const textoBusqueda = inputBusqueda.value.trim();
+            const menuControlesAbierto = !buscadorBox.classList.contains('oculto');
     
-            if (target.id && target._nombrePin && target.tagName.toLowerCase() === 'circle' && (categoriaFijada || textoBusqueda !== '')) {
-                target.style.fill = '';        
+            if (target.id && target._nombrePin && target.tagName.toLowerCase() === 'circle') {  
+                
+                if (target !== pinSeleccionado) {
             
-                if (categoriaFijada && textoBusqueda === '') {
-                    target.style.fillOpacity = '0';
-                    target.style.stroke = coloresCategorias[categoriaFijada];
-                } else {
-                    target.style.fillOpacity = '1';
-                    const categoriaPinTarget = target._datosPin ? target._datosPin.categoria : null;
-                    if (categoriaPinTarget && coloresCategorias[categoriaPinTarget]) {
-                        target.style.stroke = coloresCategorias[categoriaPinTarget];
+                    if (menuControlesAbierto || categoriaFijada || textoBusqueda !== '') {
+                        target.style.fill = ''; 
+                        target.style.filter = '';
+
+                        if (textoBusqueda !== '') {
+                            target.style.fillOpacity = '1';
+                            const catPin = target._datosPin ? target._datosPin.categoria : null;
+                            target.style.stroke = (catPin && coloresCategorias[catPin]) ? coloresCategorias[catPin] : '#00ff41';
+                        } else if (categoriaFijada) {
+                            target.style.fillOpacity = '0';
+                            target.style.stroke = coloresCategorias[categoriaFijada];
+                        } else {
+                            target.style.fillOpacity = '';
+                            target.style.stroke = '';
+                        }
+                    }
                 }
             }
-        }
-        tooltip.style.display = 'none'; 
-        infoPanel.textContent = "SITÚA EL MOUSE SOBRE UN PIN";
-    });
+            
+            tooltip.style.display = 'none'; 
+            infoPanel.textContent = "SITÚA EL MOUSE SOBRE UN PIN";
+        });
 
        // CONTROLADORES DE INTERFAZ (Buscador y Botonera)
        
@@ -670,11 +852,12 @@
           buscadorBox.classList.remove('oculto');
           dropdownFiltros.classList.remove('oculto');
           inputBusqueda.focus();
+          actualizarColorPinSeleccionado();
        });
 
        //Click afuera de la barra (Cerrar buscador)
        document.addEventListener('click', (e) => {
-          if (!buscadorBox.contains(e.target) && !infoPanel.contains(e.target) && !btnLupa.contains(e.target)) {
+          if (!buscadorBox.contains(e.target) && !infoPanel.contains(e.target) && !btnLupa.contains(e.target) && !e.target._nombrePin) {
              dropdownFiltros.classList.add('oculto');
              buscadorBox.classList.add('oculto');
              infoPanel.classList.remove('oculto');
@@ -689,48 +872,78 @@
 
            // Previsualizar al pasar el mouse
            boton.addEventListener('mouseenter', () => {
-               if (!categoriaFijada) {
-                   aplicarFiltro(cat, col, false);
+               if (inputBusqueda.value.trim() !== '') return;
+               if (categoriaFijada === cat && !aislarPinActivo) return;
+                   
+               const aislamientoPrevio = aislarPinActivo;
+               aislarPinActivo = false;
+
+               aplicarFiltro(cat, col, false);
+
+               if (pinSeleccionado && pinSeleccionado._datosPin?.categoria === cat) {
+                   pinSeleccionado.style.setProperty('--color-seleccionado', col);
                }
+
+               aislarPinActivo = aislamientoPrevio;
+
+               actualizarColorPinSeleccionado();
+               
            });
 
            // Limpiar al sacar el mouse
            boton.addEventListener('mouseleave', () => {
-               if (!categoriaFijada) {
-                   if (inputBusqueda.value.trim() !== '') {
-                      inputBusqueda.dispatchEvent(new Event('input'));
-                   } else {
-                       limpiarAspectoPlaca();
-                   }
+               if (inputBusqueda.value.trim() !== '') return;
+               if (categoriaFijada === cat && !aislarPinActivo) return;
+
+               if (categoriaFijada) {
+                   const botonActivo = document.querySelector(`.btn-filtro[data-categoria="${categoriaFijada}"]`);
+                   const colActiva = botonActivo.style.getPropertyValue('--color-btn');
+                   aplicarFiltro(categoriaFijada, colActiva, true);
+               } else {
+                   limpiarAspectoPlaca();
                }
+
+               actualizarColorPinSeleccionado();
            });
 
            // Fijar categoría al hacer click
            boton.addEventListener('click', (e) => {
                e.stopPropagation();
                if (categoriaFijada === cat) {
-                   resetearFiltrosPlaca();
+                   if (aislarPinActivo) {
+                       aislarPinActivo = false;
+                       aplicarFiltro(cat, col, true);
+                       actualizarColorPinSeleccionado();
+                   } else {
+                       resetearFiltrosPlaca();
+                   }
                } else {
                    
                    inputBusqueda.value = '';
                    botonesFIltro.forEach(b => b.classList.remove('activo'));
                    categoriaFijada = cat;
-                   boton.classList.add('activo');     
+                   boton.classList.add('activo'); 
+                   aislarPinActivo = false;    
 
                    setTimeout(() => {
                        aplicarFiltro(cat, col, true); 
+                       actualizarColorPinSeleccionado();
                    }, 0);
                }
            });
-       }); // Cierre correcto del forEach de botones
+       });
 
        //Motor de busqueda en tiempo real 
-       inputBusqueda.addEventListener('input', () => {
+       inputBusqueda.addEventListener('input', (e) => {
+
+           if (e && e.isTrusted) {
+               aislarPinActivo = false;
+           }
+         
            const texto = inputBusqueda.value.toUpperCase().trim();
            containerEtiquetas.innerHTML = '';
            const fragmentoLabel = document.createDocumentFragment();
 
-        //Si el usuario borro el buscador, restauramos el estado
         if (texto === '') {
             if (categoriaFijada) {
                 const botonActivo = document.querySelector(`.btn-filtro[data-categoria="${categoriaFijada}"]`);
@@ -740,6 +953,7 @@
             } else {
                 limpiarAspectoPlaca();
             }
+            actualizarColorPinSeleccionado();
             return;
         }
 
@@ -748,12 +962,20 @@
         componentesPlacaGlobal.forEach(componente => {
             if (!componente.id || ['svg1', 'Placa', 'etiquetas-dinamicas'].includes(componente.id)) return;
 
-            const prefijo = componente._prefijo;
             const nombrePin = componente._nombrePin;
             const datosPin = componente._datosPin;
             const esPinBuscable = componente._esPinBuscable;
 
             if (esPinBuscable && nombrePin.toUpperCase().includes(texto)) {
+
+                if (pinSeleccionado && aislarPinActivo && componente !== pinSeleccionado) {
+                    componente.style.fillOpacity = '0.15';
+                    componente.style.strokeOpacity = '0.15';
+                    componente.style.stroke = '';
+                    componente.style.filter = 'none';
+                    componente.style.pointerEvents = 'none';
+                    return;
+                }
                 const colorBusqueda = (datosPin && coloresCategorias[datosPin.categoria])
                                       ? coloresCategorias[datosPin.categoria]
                                       : '#00ff41';
@@ -771,24 +993,8 @@
                 }
 
                 if (componente.tagName.toLowerCase() === 'circle') {
-                    const cx = parseFloat(componente.getAttribute('cx'));
-                    const cy = parseFloat(componente.getAttribute('cy'));
-
-                    const { textAnchor, offsetX, offsetY } = obtenerGeometriaEtiqueta(prefijo, componente._pinNum);
-
-                if (textAnchor !=='') {
-                    const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-                    text.setAttribute('x', cx + offsetX);
-                    text.setAttribute('y', cy + offsetY);
-                    text.setAttribute('dominant-baseline', 'middle');
-                    text.setAttribute('text-anchor', textAnchor);
-                    text.setAttribute('class', 'pin-label');
-                    text.setAttribute('fill', colorBusqueda);
-                    text.textContent = nombrePin;
-
-                    fragmentoLabel.appendChild(text);
-                }
-
+                    const text = crearNodoEtiqueta(componente, colorBusqueda);
+                    if (text) fragmentoLabel.appendChild(text);
                 }
             } else {
                 componente.style.fillOpacity = '0.15';
@@ -800,8 +1006,78 @@
         });
 
        containerEtiquetas.appendChild(fragmentoLabel);
+       actualizarColorPinSeleccionado();
 
        });
+
+       //Abrir panel lateral al hacer click en un pin válido
+       svg.addEventListener('click', (e) => {
+           const target = e.target;
+
+           if (target.id && target._nombrePin) {
+               if (pinSeleccionado) {
+                   pinSeleccionado.classList.remove('seleccionado');
+                   pinSeleccionado.style.fill = '';
+                   pinSeleccionado.style.fillOpacity = '';
+                   pinSeleccionado.style.stroke = '';
+                   pinSeleccionado.filter = '';
+
+                   const textoBusqueda = inputBusqueda.value.trim();
+                   if (!categoriaFijada && textoBusqueda === '') {
+                       const etiquetaVieja = Array.from(containerEtiquetas.querySelectorAll('.pin-label')).find(label => label.textContent === pinSeleccionado._nombrePin);
+                       if (etiquetaVieja) etiquetaVieja.remove();
+                   }
+               }
+
+               pinSeleccionado = target;
+               target.classList.add('seleccionado');
+
+               if (inputBusqueda.value.trim() !== '') {
+                   inputBusqueda.value = '';
+
+                   if  (!categoriaFijada) {
+                        limpiarAspectoPlaca();
+                   }
+               }
+
+               aislarPinActivo = true;
+               const catPin = target._datosPin ? target._datosPin.categoria : null;
+               
+               if (catPin) {
+                   botonesFIltro.forEach(b => b.classList.remove('activo'));
+                   const botonNuevo = document.querySelector(`.btn-filtro[data-categoria="${catPin}"]`);
+                   if (botonNuevo) botonNuevo.classList.add('activo');
+                   categoriaFijada = catPin;
+                   const col = botonNuevo.style.getPropertyValue('--color-btn');
+                   aplicarFiltro(categoriaFijada, col,true);
+               } else {
+                   categoriaFijada = null;
+                   botonesFIltro.forEach(b => b.classList.remove('activo'));
+               }
+               actualizarColorPinSeleccionado();
+
+               document.body.classList.add('panel-abierto');
+           }
+       });
+
+       //Cerrar panel lateral
+       btnCerrarPanel.addEventListener('click', () => {
+           document.body.classList.remove('panel-abierto');
+
+           if (pinSeleccionado) {
+               pinSeleccionado.classList.remove('seleccionado');
+               pinSeleccionado = null;
+           }
+
+           if (categoriaFijada) {
+               const botonActivo = document.querySelector(`.btn-filtro[data-categoria="${categoriaFijada}"]`);
+               const col = botonActivo.style.getPropertyValue('--color-btn');
+               aplicarFiltro(categoriaFijada, col, true);
+           } else {
+               limpiarAspectoPlaca();
+           }
+       });
+
     </script>
 </body>
 </html>
